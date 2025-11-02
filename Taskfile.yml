@@ -1,0 +1,138 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+version: '3'
+
+vars:
+  DIST_DIR: dist
+  OUT_DIR: out
+  BUILD_DIR: build
+  EXTENSION_FILE: extension.js
+
+tasks:
+  default:
+    desc: Build and package the extension
+    cmds:
+      - task: package-extension
+
+  install:
+    desc: Install npm dependencies
+    cmds:
+      - npm install
+    sources:
+      - package.json
+      - package-lock.json
+
+  build:
+    desc: Build the extension for development (compile only)
+    deps: [check-types, lint]
+    cmds:
+      - node esbuild.js
+    sources:
+      - src/**/*.ts
+      - esbuild.js
+      - tsconfig.json
+    generates:
+      - '{{.DIST_DIR}}/{{.EXTENSION_FILE}}'
+
+  watch:
+    desc: Watch for changes and rebuild (runs TypeScript and esbuild in parallel)
+    cmds:
+      - npm run watch
+
+  watch:esbuild:
+    desc: Watch and rebuild with esbuild only
+    cmds:
+      - node esbuild.js --watch
+
+  watch:tsc:
+    desc: Watch TypeScript type checking only
+    cmds:
+      - npx tsc --noEmit --watch --project tsconfig.json
+
+  compile:
+    desc: Compile the extension for production (esbuild only)
+    deps: [check-types, lint]
+    cmds:
+      - node esbuild.js --production
+    sources:
+      - src/**/*.ts
+      - esbuild.js
+      - tsconfig.json
+    generates:
+      - '{{.DIST_DIR}}/{{.EXTENSION_FILE}}'
+
+  package-extension:
+    desc: Package extension into .vsix file
+    aliases: [package]
+    deps: [compile]
+    cmds:
+      - mkdir build 2>/dev/null
+      - npx vsce package --out ./build/ --skip-license
+    generates:
+      - '*.vsix'
+
+  publish:
+    desc: Publish extension to VS Code Marketplace
+    deps: [package-extension]
+    cmds:
+      - npx vsce publish
+
+  check-types:
+    desc: Run TypeScript type checking
+    cmds:
+      - npx tsc --noEmit
+    sources:
+      - src/**/*.ts
+      - tsconfig.json
+
+  lint:
+    desc: Run ESLint on source files
+    cmds:
+      - npx eslint src
+    sources:
+      - src/**/*.ts
+      - eslint.config.mjs
+
+  lint:fix:
+    desc: Run ESLint and auto-fix issues
+    cmds:
+      - npx eslint src --fix
+
+  compile-tests:
+    desc: Compile test files
+    cmds:
+      - npx tsc -p . --outDir {{.OUT_DIR}}
+    sources:
+      - src/test/**/*.ts
+      - tsconfig.json
+    generates:
+      - '{{.OUT_DIR}}/**/*.js'
+
+  test:
+    desc: Run all tests
+    deps: [compile-tests, build, lint]
+    cmds:
+      - npx vscode-test
+
+  clean:
+    desc: Remove build artifacts
+    cmds:
+      - rm -rf {{.DIST_DIR}}
+      - rm -rf {{.OUT_DIR}}
+      - rm -rf {{.BUILD_DIR}}
+
+  clean:all:
+    desc: Remove all build artifacts and dependencies
+    cmds:
+      - task: clean
+      - rm -rf node_modules
+
+  vscode:prepublish:
+    desc: Prepare extension for publishing (production build)
+    aliases: [prepublish]
+    cmds:
+      - task: compile
+
+  install-vsce:
+    desc: Install vsce (VS Code Extension Manager)
+    cmds:
+      - npm install -g @vscode/vsce

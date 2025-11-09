@@ -156,8 +156,9 @@ export class VersionGraphLayout {
 	/**
 	 * Calculate node positions
 	 * Vertical layout (bottom to top, newest on top):
-	 * - Main line: x = 0, y = (totalReleases - index - 1) * verticalSpacing
+	 * - Main line: x = 0, y = index * verticalSpacing
 	 * - Hotfixes: branch horizontally to the right from their base
+	 * Note: In SVG, Y increases downward, so index 0 (newest) gets smallest Y (top)
 	 */
 	private calculatePositions(
 		nodes: VersionGraphNode[],
@@ -168,14 +169,13 @@ export class VersionGraphLayout {
 			nodeMap.set(node.id, node);
 		}
 		
-		// Position main line nodes (non-hotfixes) vertically from bottom to top
+		// Position main line nodes (non-hotfixes) vertically from top to bottom
 		const mainLineNodes = nodes.filter(n => !n.isHotfix);
-		const totalReleases = mainLineNodes.length;
 		
 		mainLineNodes.forEach((node, index) => {
 			node.x = 0;  // Main line at x = 0
-			// Reverse order: newest (index 0) at top (highest y), oldest at bottom (y = 0)
-			node.y = (totalReleases - index - 1) * this.options.verticalSpacing;
+			// index 0 (newest version in array) at top (y = 0), older versions further down
+			node.y = index * this.options.verticalSpacing;
 		});
 		
 		// Position hotfix nodes

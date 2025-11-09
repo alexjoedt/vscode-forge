@@ -160,9 +160,14 @@
           "group": "navigation@2"
         },
         {
-          "command": "forge.selectApp",
+          "command": "forge.showGraphView",
           "when": "view == forgeVersionHistory",
           "group": "navigation@3"
+        },
+        {
+          "command": "forge.selectApp",
+          "when": "view == forgeVersionHistory",
+          "group": "navigation@4"
         }
       ],
       "view/item/context": [

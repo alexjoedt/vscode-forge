@@ -15,8 +15,8 @@ export interface GraphLayout {
 }
 
 export interface LayoutOptions {
-	horizontalSpacing?: number;  // Space between nodes on main line
-	verticalSpacing?: number;    // Space between hotfix levels
+	verticalSpacing?: number;    // Space between nodes on main line (vertical)
+	horizontalSpacing?: number;  // Space between hotfix branches (horizontal)
 	nodeRadius?: number;         // Radius of node circles
 	hotfixSuffixes?: string[];   // Hotfix suffixes to recognize
 }
@@ -25,8 +25,8 @@ export interface LayoutOptions {
  * Default layout options
  */
 const DEFAULT_OPTIONS: Required<LayoutOptions> = {
-	horizontalSpacing: 150,
-	verticalSpacing: 80,
+	verticalSpacing: 80,         // Vertical spacing between release versions
+	horizontalSpacing: 150,      // Horizontal spacing for hotfix branches
 	nodeRadius: 20,
 	hotfixSuffixes: ['hotfix', 'patch', 'fix']
 };
@@ -155,8 +155,9 @@ export class VersionGraphLayout {
 	
 	/**
 	 * Calculate node positions
-	 * Main line: y = 0, x = index * spacing
-	 * Hotfixes: y = depth * spacing, x = parent.x
+	 * Vertical layout (bottom to top, newest on top):
+	 * - Main line: x = 0, y = (totalReleases - index - 1) * verticalSpacing
+	 * - Hotfixes: branch horizontally to the right from their base
 	 */
 	private calculatePositions(
 		nodes: VersionGraphNode[],
@@ -167,15 +168,18 @@ export class VersionGraphLayout {
 			nodeMap.set(node.id, node);
 		}
 		
-		// Position main line nodes (non-hotfixes)
+		// Position main line nodes (non-hotfixes) vertically from bottom to top
 		const mainLineNodes = nodes.filter(n => !n.isHotfix);
+		const totalReleases = mainLineNodes.length;
+		
 		mainLineNodes.forEach((node, index) => {
-			node.x = index * this.options.horizontalSpacing;
-			node.y = 0;
+			node.x = 0;  // Main line at x = 0
+			// Reverse order: newest (index 0) at top (highest y), oldest at bottom (y = 0)
+			node.y = (totalReleases - index - 1) * this.options.verticalSpacing;
 		});
 		
 		// Position hotfix nodes
-		// Group by base version and stack vertically
+		// Group by base version and position horizontally to the right
 		const hotfixGroups = new Map<string, VersionGraphNode[]>();
 		
 		for (const node of nodes) {
@@ -186,7 +190,7 @@ export class VersionGraphLayout {
 			}
 		}
 		
-		// Sort each group by sequence and position
+		// Sort each group by sequence and position horizontally
 		for (const [baseTag, hotfixes] of hotfixGroups.entries()) {
 			// Sort by sequence number
 			hotfixes.sort((a, b) => {
@@ -201,10 +205,10 @@ export class VersionGraphLayout {
 				continue;
 			}
 			
-			// Position hotfixes vertically below base
+			// Position hotfixes horizontally to the right of base
 			hotfixes.forEach((hotfix, index) => {
-				hotfix.x = baseNode.x;
-				hotfix.y = (index + 1) * this.options.verticalSpacing;
+				hotfix.x = (index + 1) * this.options.horizontalSpacing;
+				hotfix.y = baseNode.y;  // Same y-level as base
 			});
 		}
 	}
@@ -226,10 +230,13 @@ export class VersionGraphLayout {
 		}
 		
 		// Add padding for node size and labels
-		const padding = this.options.nodeRadius * 4;
+		// More horizontal padding for labels, more vertical padding for spacing
+		const horizontalPadding = 200;  // Space for version labels on the right
+		const verticalPadding = 100;    // Top and bottom padding
+		
 		return {
-			width: maxX + padding,
-			height: maxY + padding
+			width: maxX + horizontalPadding,
+			height: maxY + verticalPadding
 		};
 	}
 }

@@ -180,7 +180,7 @@ export class VersionGraphPanel {
 		body {
 			padding: 0;
 			margin: 0;
-			overflow: hidden;
+			overflow: auto;
 			background-color: var(--vscode-editor-background);
 			color: var(--vscode-editor-foreground);
 			font-family: var(--vscode-font-family);
@@ -188,51 +188,14 @@ export class VersionGraphPanel {
 		
 		.container {
 			width: 100%;
-			height: 100vh;
-			overflow: auto;
-			position: relative;
-		}
-		
-		.controls {
-			position: fixed;
-			top: 10px;
-			right: 10px;
-			background-color: var(--vscode-editor-background);
-			border: 1px solid var(--vscode-panel-border);
-			padding: 8px;
-			border-radius: 4px;
-			z-index: 1000;
-			display: flex;
-			gap: 8px;
-			align-items: center;
-		}
-		
-		.controls button {
-			background-color: var(--vscode-button-background);
-			color: var(--vscode-button-foreground);
-			border: none;
-			padding: 4px 12px;
-			cursor: pointer;
-			border-radius: 2px;
-			font-size: 12px;
-		}
-		
-		.controls button:hover {
-			background-color: var(--vscode-button-hoverBackground);
-		}
-		
-		.controls label {
-			font-size: 12px;
-			display: flex;
-			align-items: center;
-			gap: 4px;
-			cursor: pointer;
+			min-height: 100vh;
+			padding: 20px 40px;
+			box-sizing: border-box;
 		}
 		
 		.graph-container {
-			padding: 80px 40px 40px 40px;
-			min-width: 100%;
 			display: inline-block;
+			min-width: 100%;
 		}
 		
 		svg {
@@ -282,16 +245,17 @@ export class VersionGraphPanel {
 		
 		.node-label {
 			fill: var(--vscode-foreground);
-			font-size: 12px;
-			text-anchor: middle;
+			font-size: 13px;
+			font-weight: 500;
+			text-anchor: start;
 			pointer-events: none;
 			user-select: none;
 		}
 		
 		.node-commit {
 			fill: var(--vscode-descriptionForeground);
-			font-size: 10px;
-			text-anchor: middle;
+			font-size: 11px;
+			text-anchor: start;
 			pointer-events: none;
 			user-select: none;
 		}
@@ -322,14 +286,15 @@ export class VersionGraphPanel {
 		
 		.legend {
 			position: fixed;
-			bottom: 10px;
-			left: 10px;
+			top: 20px;
+			right: 20px;
 			background-color: var(--vscode-editor-background);
 			border: 1px solid var(--vscode-panel-border);
-			padding: 8px;
+			padding: 10px 12px;
 			border-radius: 4px;
 			font-size: 12px;
 			z-index: 1000;
+			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 		}
 		
 		.legend-item {
@@ -379,16 +344,6 @@ export class VersionGraphPanel {
 </head>
 <body>
 	<div class="container" id="container">
-		<div class="controls">
-			<button id="zoom-in">+</button>
-			<button id="zoom-out">−</button>
-			<button id="reset-view">Reset View</button>
-			<label>
-				<input type="checkbox" id="show-hotfixes" checked>
-				Show Hotfixes
-			</label>
-		</div>
-		
 		<div class="graph-container" id="graph-container">
 			${svg}
 		</div>
@@ -410,40 +365,7 @@ export class VersionGraphPanel {
 	
 	<script nonce="${nonce}">
 		const vscode = acquireVsCodeApi();
-		let scale = 1;
 		let currentTag = null;
-		
-		// Zoom controls
-		document.getElementById('zoom-in').addEventListener('click', () => {
-			scale = Math.min(scale + 0.2, 3);
-			updateZoom();
-		});
-		
-		document.getElementById('zoom-out').addEventListener('click', () => {
-			scale = Math.max(scale - 0.2, 0.5);
-			updateZoom();
-		});
-		
-		document.getElementById('reset-view').addEventListener('click', () => {
-			scale = 1;
-			updateZoom();
-			document.getElementById('container').scrollTop = 0;
-			document.getElementById('container').scrollLeft = 0;
-		});
-		
-		function updateZoom() {
-			const graphContainer = document.getElementById('graph-container');
-			graphContainer.style.transform = \`scale(\${scale})\`;
-			graphContainer.style.transformOrigin = 'top left';
-		}
-		
-		// Toggle hotfixes
-		document.getElementById('show-hotfixes').addEventListener('change', (e) => {
-			const hotfixElements = document.querySelectorAll('.node-hotfix, .edge-hotfix, .hotfix-label, .hotfix-commit');
-			hotfixElements.forEach(el => {
-				el.style.display = e.target.checked ? '' : 'none';
-			});
-		});
 		
 		// Node interactions
 		const nodes = document.querySelectorAll('.graph-node');
@@ -534,11 +456,22 @@ export class VersionGraphPanel {
 	
 	/**
 	 * Generate SVG markup for the graph
+	 * Vertical layout: main line from bottom to top, hotfixes branch right
 	 */
 	private generateSvg(graph: { nodes: any[], edges: any[], width: number, height: number }): string {
 		const { nodes, edges, width, height } = graph;
 		
-		// Generate edges
+		// Add left margin for the graph
+		const leftMargin = 60;
+		const topMargin = 40;
+		
+		// Adjust all node positions
+		nodes.forEach(node => {
+			node.x += leftMargin;
+			node.y += topMargin;
+		});
+		
+		// Generate edges with curved paths for better visualization
 		const edgesSvg = edges.map(edge => {
 			const fromNode = nodes.find(n => n.id === edge.from);
 			const toNode = nodes.find(n => n.id === edge.to);
@@ -549,27 +482,45 @@ export class VersionGraphPanel {
 			
 			const className = edge.isHotfix ? 'edge-hotfix' : 'edge-release';
 			
-			// Draw line from center of from node to center of to node
-			return `<line x1="${fromNode.x}" y1="${fromNode.y}" x2="${toNode.x}" y2="${toNode.y}" class="${className}" />`;
+			// For vertical main line edges (straight line)
+			if (!edge.isHotfix) {
+				return `<line x1="${fromNode.x}" y1="${fromNode.y}" x2="${toNode.x}" y2="${toNode.y}" class="${className}" />`;
+			}
+			
+			// For hotfix branches (curved path)
+			// Create a smooth curve from base to hotfix
+			const dx = toNode.x - fromNode.x;
+			const dy = toNode.y - fromNode.y;
+			
+			// Use cubic bezier curve for smooth branching
+			const controlPointOffset = Math.abs(dx) * 0.5;
+			const path = `M ${fromNode.x} ${fromNode.y} C ${fromNode.x + controlPointOffset} ${fromNode.y}, ${toNode.x - controlPointOffset} ${toNode.y}, ${toNode.x} ${toNode.y}`;
+			
+			return `<path d="${path}" class="${className}" />`;
 		}).join('\n');
 		
-		// Generate nodes
+		// Generate nodes with labels positioned to the right
 		const nodesSvg = nodes.map(node => {
 			const className = node.isHotfix ? 'node-hotfix' : 'node-release';
 			const labelClass = node.isHotfix ? 'node-label hotfix-label' : 'node-label';
 			const commitClass = node.isHotfix ? 'node-commit hotfix-commit' : 'node-commit';
 			
+			// Position labels to the right of the node
+			const labelX = node.x + 30;
+			const labelY = node.y + 5;
+			const commitY = node.y + 18;
+			
 			return `
 				<g class="graph-node" data-tag="${this.escapeHtml(node.id)}" data-version="${this.escapeHtml(node.version)}" data-commit="${this.escapeHtml(node.commit)}" data-date="${this.escapeHtml(node.date)}" data-message="${this.escapeHtml(node.message)}">
-					<circle cx="${node.x}" cy="${node.y}" r="20" class="${className}" />
-					<text x="${node.x}" y="${node.y + 40}" class="${labelClass}">${this.escapeHtml(node.version)}</text>
-					<text x="${node.x}" y="${node.y + 55}" class="${commitClass}">${this.escapeHtml(node.commit.substring(0, 7))}</text>
+					<circle cx="${node.x}" cy="${node.y}" r="8" class="${className}" />
+					<text x="${labelX}" y="${labelY}" class="${labelClass}">${this.escapeHtml(node.version)}</text>
+					<text x="${labelX}" y="${commitY}" class="${commitClass}">${this.escapeHtml(node.commit.substring(0, 7))}</text>
 				</g>
 			`;
 		}).join('\n');
 		
 		return `
-			<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+			<svg width="${width + leftMargin + 40}" height="${height + topMargin + 40}" xmlns="http://www.w3.org/2000/svg">
 				${edgesSvg}
 				${nodesSvg}
 			</svg>

@@ -66,8 +66,14 @@ export class VersionHistoryProvider implements vscode.TreeDataProvider<VersionTr
 				return [this.createNoConfigItem()];
 			}
 
+			// Get version history limit from configuration
+			const limit = vscode.workspace.getConfiguration('forge').get<number>('versionHistoryLimit', 10);
+
 			// Get version history from forge
-			const history = await this.forgeService.getVersionHistory({ app: this.currentApp });
+			const history = await this.forgeService.getVersionHistory({ 
+				app: this.currentApp,
+				limit: limit
+			});
 
 			if (history.versions.length === 0) {
 				return [this.createNoTagsItem()];

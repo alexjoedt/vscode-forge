@@ -126,8 +126,14 @@ export class VersionGraphPanel {
 	 * Handle show tag details message
 	 */
 	private async handleShowTagDetails(tag: string): Promise<void> {
-		// Fire command to show tag details in the existing panel
-		await vscode.commands.executeCommand('forge.showTagDetails', tag);
+		// Find the version entry from our stored versions
+		const versionEntry = this.versions.find(v => v.tag === tag);
+		if (!versionEntry) {
+			vscode.window.showErrorMessage(`Version not found: ${tag}`);
+			return;
+		}
+		// Fire command to show tag details with the full version entry
+		await vscode.commands.executeCommand('forge.showTagDetails', versionEntry);
 	}
 	
 	/**

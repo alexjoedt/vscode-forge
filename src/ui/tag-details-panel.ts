@@ -69,46 +69,72 @@ export class TagDetailsPanel {
 	 * Get commit details from git
 	 */
 	private async getCommitDetails(): Promise<{
-		fullMessage: string;
 		author: string;
 		authorEmail: string;
-		authorDate: string;
-		filesChanged: number;
-		insertions: number;
-		deletions: number;
-		diffStat: string;
-		fileDiffs: Array<{name: string, changes: string}>;
+		commits: Array<{
+			hash: string;
+			shortHash: string;
+			author: string;
+			date: string;
+			message: string;
+		}>;
+		stats: {
+			filesChanged: number;
+			insertions: number;
+			deletions: number;
+			commits: number;
+		};
+		previousTag?: string;
 	}> {
 		try {
-			const fullMessage = await this.gitService.getCommitMessage(this.version.commit);
+			// Get the author of the tag commit
 			const author = await this.gitService.getCommitAuthor(this.version.commit);
 			const authorEmail = await this.gitService.getCommitAuthorEmail(this.version.commit);
-			const authorDate = await this.gitService.getCommitDate(this.version.commit);
-			const stats = await this.gitService.getCommitStats(this.version.commit);
-			const diffStat = await this.gitService.getCommitDiffStat(this.version.commit);
-			const fileDiffs = await this.gitService.getCommitFileDiffs(this.version.commit);
+
+			// Find the previous tag
+			const previousTag = await this.gitService.getPreviousTag(this.version.tag);
+
+			let commits: Array<{hash: string, shortHash: string, author: string, date: string, message: string}> = [];
+			let stats = { filesChanged: 0, insertions: 0, deletions: 0, commits: 0 };
+
+			if (previousTag) {
+				// Get commits between previous tag and current tag
+				commits = await this.gitService.getCommitRange(previousTag, this.version.tag);
+				stats = await this.gitService.getCommitRangeStats(previousTag, this.version.tag);
+			} else {
+				// No previous tag - this is the first tag
+				// Get all commits up to this tag
+				commits = [{
+					hash: this.version.commit,
+					shortHash: this.version.commit.substring(0, 7),
+					author: author,
+					date: this.version.date,
+					message: this.version.message || 'Initial version'
+				}];
+				stats = { filesChanged: 0, insertions: 0, deletions: 0, commits: 1 };
+			}
 
 			return {
-				fullMessage,
 				author,
 				authorEmail,
-				authorDate,
-				...stats,
-				diffStat,
-				fileDiffs
+				commits,
+				stats,
+				previousTag
 			};
 		} catch (error) {
 			console.error('Error fetching commit details:', error);
 			return {
-				fullMessage: this.version.message || 'N/A',
 				author: 'Unknown',
 				authorEmail: '',
-				authorDate: this.version.date,
-				filesChanged: 0,
-				insertions: 0,
-				deletions: 0,
-				diffStat: '',
-				fileDiffs: []
+				commits: [{
+					hash: this.version.commit,
+					shortHash: this.version.commit.substring(0, 7),
+					author: 'Unknown',
+					date: this.version.date,
+					message: this.version.message || 'N/A'
+				}],
+				stats: { filesChanged: 0, insertions: 0, deletions: 0, commits: 1 },
+				previousTag: undefined
 			};
 		}
 	}
@@ -206,19 +232,6 @@ export class TagDetailsPanel {
 			font-size: 0.9em;
 		}
 
-		.commit-message {
-			background-color: var(--vscode-textCodeBlock-background);
-			padding: 16px;
-			border-radius: 4px;
-			border: 1px solid var(--vscode-panel-border);
-			white-space: pre-wrap;
-			font-family: var(--vscode-editor-font-family);
-			font-size: 0.95em;
-			color: var(--vscode-foreground);
-			max-height: 300px;
-			overflow-y: auto;
-		}
-
 		.stats {
 			display: flex;
 			gap: 20px;
@@ -230,6 +243,7 @@ export class TagDetailsPanel {
 			padding: 12px 20px;
 			border-radius: 4px;
 			border: 1px solid var(--vscode-panel-border);
+			flex: 1;
 		}
 
 		.stat-value {
@@ -245,41 +259,61 @@ export class TagDetailsPanel {
 			margin-top: 4px;
 		}
 
-		.diff-stat {
-			background-color: var(--vscode-textCodeBlock-background);
-			padding: 16px;
-			border-radius: 4px;
-			border: 1px solid var(--vscode-panel-border);
-			font-family: var(--vscode-editor-font-family);
-			font-size: 0.9em;
-			white-space: pre;
-			overflow-x: auto;
-			max-height: 400px;
-			overflow-y: auto;
+		.commit-list {
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
 		}
 
-		.file-diff {
-			background-color: var(--vscode-textCodeBlock-background);
+		.commit-item {
+			background-color: var(--vscode-editor-inactiveSelectionBackground);
 			padding: 12px 16px;
 			border-radius: 4px;
 			border: 1px solid var(--vscode-panel-border);
-			margin-bottom: 12px;
+			transition: background-color 0.1s ease;
 		}
 
-		.file-diff-header {
-			font-family: var(--vscode-editor-font-family);
-			font-weight: 600;
-			color: var(--vscode-symbolIcon-fileForeground);
-			margin-bottom: 8px;
+		.commit-item:hover {
+			background-color: var(--vscode-list-hoverBackground);
 		}
 
-		.file-diff-content {
+		.commit-header {
+			display: flex;
+			align-items: baseline;
+			gap: 12px;
+			margin-bottom: 6px;
+		}
+
+		.commit-hash {
 			font-family: var(--vscode-editor-font-family);
 			font-size: 0.9em;
-			white-space: pre;
-			overflow-x: auto;
-			max-height: 300px;
-			overflow-y: auto;
+			color: var(--vscode-textLink-foreground);
+			font-weight: 600;
+		}
+
+		.commit-message {
+			color: var(--vscode-foreground);
+			font-weight: 500;
+			flex: 1;
+		}
+
+		.commit-meta {
+			display: flex;
+			gap: 16px;
+			font-size: 0.9em;
+			color: var(--vscode-descriptionForeground);
+		}
+
+		.commit-author {
+			display: flex;
+			align-items: center;
+			gap: 4px;
+		}
+
+		.commit-date {
+			display: flex;
+			align-items: center;
+			gap: 4px;
 		}
 
 		.empty-message {
@@ -322,47 +356,76 @@ export class TagDetailsPanel {
 				
 				<div class="info-label">Author:</div>
 				<div class="info-value">${this.escapeHtml(details.author)}${details.authorEmail ? ` &lt;${this.escapeHtml(details.authorEmail)}&gt;` : ''}</div>
+				
+				${details.previousTag ? `
+				<div class="info-label">Previous Tag:</div>
+				<div class="info-value"><code>${this.escapeHtml(details.previousTag)}</code></div>
+				` : ''}
 			</div>
-		</div>
-
-		<div class="section">
-			<h2>Commit Message</h2>
-			<div class="commit-message">${this.escapeHtml(details.fullMessage)}</div>
 		</div>
 
 		<div class="section">
 			<h2>Changes Overview</h2>
 			<div class="stats">
 				<div class="stat-item">
-					<div class="stat-value">${details.filesChanged}</div>
+					<div class="stat-value">${details.stats.commits}</div>
+					<div class="stat-label">Commits</div>
+				</div>
+				<div class="stat-item">
+					<div class="stat-value">${details.stats.filesChanged}</div>
 					<div class="stat-label">Files Changed</div>
 				</div>
 				<div class="stat-item insertions">
-					<div class="stat-value">+${details.insertions}</div>
+					<div class="stat-value">+${details.stats.insertions}</div>
 					<div class="stat-label">Insertions</div>
 				</div>
 				<div class="stat-item deletions">
-					<div class="stat-value">-${details.deletions}</div>
+					<div class="stat-value">-${details.stats.deletions}</div>
 					<div class="stat-label">Deletions</div>
 				</div>
 			</div>
-			${details.diffStat ? `<div class="diff-stat">${this.escapeHtml(details.diffStat)}</div>` : '<div class="empty-message">No changes in this commit</div>'}
 		</div>
 
-		${details.fileDiffs.length > 0 ? `
 		<div class="section">
-			<h2>File Changes</h2>
-			${details.fileDiffs.map(file => `
-				<div class="file-diff">
-					<div class="file-diff-header">${this.escapeHtml(file.name)}</div>
-					<div class="file-diff-content">${this.escapeHtml(file.changes)}</div>
-				</div>
-			`).join('')}
+			<h2>Commits ${details.previousTag ? `(${this.escapeHtml(details.previousTag)} → ${this.escapeHtml(this.version.tag)})` : ''}</h2>
+			${details.commits.length > 0 ? `
+			<div class="commit-list">
+				${details.commits.map(commit => `
+					<div class="commit-item">
+						<div class="commit-header">
+							<span class="commit-hash">${this.escapeHtml(commit.shortHash)}</span>
+							<span class="commit-message">${this.escapeHtml(commit.message)}</span>
+						</div>
+						<div class="commit-meta">
+							<span class="commit-author">👤 ${this.escapeHtml(commit.author)}</span>
+							<span class="commit-date">📅 ${this.escapeHtml(this.formatDate(commit.date))}</span>
+						</div>
+					</div>
+				`).join('')}
+			</div>
+			` : '<div class="empty-message">No commits found</div>'}
 		</div>
-		` : ''}
 	</div>
 </body>
 </html>`;
+	}
+
+	/**
+	 * Format date string to a more readable format
+	 */
+	private formatDate(dateStr: string): string {
+		try {
+			const date = new Date(dateStr);
+			return date.toLocaleString('en-US', {
+				year: 'numeric',
+				month: 'short',
+				day: 'numeric',
+				hour: '2-digit',
+				minute: '2-digit'
+			});
+		} catch (error) {
+			return dateStr;
+		}
 	}
 
 	/**

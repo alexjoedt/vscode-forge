@@ -273,6 +273,109 @@ export class GitService {
 	}
 
 	/**
+	 * Get previous tag before a given tag
+	 */
+	async getPreviousTag(currentTag: string, prefix?: string): Promise<string | undefined> {
+		try {
+			const pattern = prefix ? `${prefix}*` : '*';
+			const output = await this.executeGit([
+				'tag',
+				'-l',
+				pattern,
+				'--sort=-version:refname',
+				'--format=%(refname:short)'
+			]);
+
+			if (!output) {
+				return undefined;
+			}
+
+			const tags = output.split('\n').filter(t => t.trim());
+			const currentIndex = tags.indexOf(currentTag);
+			
+			if (currentIndex === -1 || currentIndex === tags.length - 1) {
+				return undefined;
+			}
+
+			return tags[currentIndex + 1];
+		} catch (error) {
+			return undefined;
+		}
+	}
+
+	/**
+	 * Get commits between two refs (tags, commits, branches)
+	 */
+	async getCommitRange(from: string, to: string): Promise<Array<{
+		hash: string;
+		shortHash: string;
+		author: string;
+		date: string;
+		message: string;
+	}>> {
+		try {
+			// Format: hash|shortHash|author|date|message
+			const output = await this.executeGit([
+				'log',
+				`${from}..${to}`,
+				'--format=%H|%h|%an|%ai|%s',
+				'--no-merges'
+			]);
+
+			if (!output) {
+				return [];
+			}
+
+			const lines = output.split('\n').filter(l => l.trim());
+			return lines.map(line => {
+				const [hash, shortHash, author, date, ...messageParts] = line.split('|');
+				return {
+					hash: hash || '',
+					shortHash: shortHash || '',
+					author: author || 'Unknown',
+					date: date || '',
+					message: messageParts.join('|') || 'No message'
+				};
+			});
+		} catch (error) {
+			return [];
+		}
+	}
+
+	/**
+	 * Get total stats for a commit range
+	 */
+	async getCommitRangeStats(from: string, to: string): Promise<{
+		filesChanged: number;
+		insertions: number;
+		deletions: number;
+		commits: number;
+	}> {
+		try {
+			const output = await this.executeGit(['diff', '--shortstat', from, to]);
+			
+			// Parse the stat line (e.g., "3 files changed, 45 insertions(+), 12 deletions(-)")
+			const statMatch = output.match(/(\d+)\s+files?\s+changed(?:,\s+(\d+)\s+insertions?\(\+\))?(?:,\s+(\d+)\s+deletions?\(-\))?/);
+			
+			// Get commit count
+			const commits = await this.getCommitRange(from, to);
+			
+			if (statMatch) {
+				return {
+					filesChanged: parseInt(statMatch[1] || '0', 10),
+					insertions: parseInt(statMatch[2] || '0', 10),
+					deletions: parseInt(statMatch[3] || '0', 10),
+					commits: commits.length
+				};
+			}
+
+			return { filesChanged: 0, insertions: 0, deletions: 0, commits: commits.length };
+		} catch (error) {
+			return { filesChanged: 0, insertions: 0, deletions: 0, commits: 0 };
+		}
+	}
+
+	/**
 	 * Get workspace root directory
 	 */
 	private getWorkspaceRoot(): string | undefined {

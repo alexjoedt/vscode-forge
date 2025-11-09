@@ -232,15 +232,15 @@ export class VersionGraphPanel {
 			stroke: var(--vscode-foreground);
 			stroke-width: 2px;
 			fill: none;
-			opacity: 0.6;
+			opacity: 0.4;
 		}
 		
 		.edge-hotfix {
 			stroke: var(--vscode-charts-orange);
-			stroke-width: 1.5px;
-			stroke-dasharray: 5, 5;
+			stroke-width: 2px;
+			stroke-dasharray: 5, 3;
 			fill: none;
-			opacity: 0.6;
+			opacity: 0.7;
 		}
 		
 		.node-label {
@@ -487,14 +487,19 @@ export class VersionGraphPanel {
 				return `<line x1="${fromNode.x}" y1="${fromNode.y}" x2="${toNode.x}" y2="${toNode.y}" class="${className}" />`;
 			}
 			
-			// For hotfix branches (curved path)
-			// Create a smooth curve from base to hotfix
+			// For hotfix branches (smooth bezier curve)
+			// Create a horizontal curve from base to hotfix node
 			const dx = toNode.x - fromNode.x;
 			const dy = toNode.y - fromNode.y;
 			
-			// Use cubic bezier curve for smooth branching
-			const controlPointOffset = Math.abs(dx) * 0.5;
-			const path = `M ${fromNode.x} ${fromNode.y} C ${fromNode.x + controlPointOffset} ${fromNode.y}, ${toNode.x - controlPointOffset} ${toNode.y}, ${toNode.x} ${toNode.y}`;
+			// Use cubic bezier with horizontal control points for smooth branching
+			// Control points keep the curve horizontal and smooth
+			const cp1x = fromNode.x + dx * 0.4;  // First control point closer to start
+			const cp1y = fromNode.y;              // Same Y as start (horizontal)
+			const cp2x = toNode.x - dx * 0.2;     // Second control point closer to end
+			const cp2y = toNode.y;                // Same Y as end (horizontal)
+			
+			const path = `M ${fromNode.x} ${fromNode.y} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${toNode.x} ${toNode.y}`;
 			
 			return `<path d="${path}" class="${className}" />`;
 		}).join('\n');

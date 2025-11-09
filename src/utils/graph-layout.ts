@@ -45,7 +45,7 @@ export class VersionGraphLayout {
 	 * Build graph from version history
 	 * Uses hotfix-parser utility to derive relationships
 	 * 
-	 * @param versions Array of version history entries (should be sorted by date, oldest first)
+	 * @param versions Array of version history entries (newest first from API)
 	 * @returns Graph layout with positioned nodes and edges
 	 */
 	buildGraph(versions: VersionHistoryEntry[]): GraphLayout {
@@ -63,6 +63,14 @@ export class VersionGraphLayout {
 			versions,
 			this.options.hotfixSuffixes
 		);
+		
+		// Debug logging
+		console.log('[VersionGraphLayout] Enriched versions:', enrichedVersions.map(v => ({
+			version: v.version,
+			tag: v.tag,
+			isHotfix: v.isHotfix,
+			baseTag: v.baseTag
+		})));
 		
 		// Build nodes and edges
 		const { nodes, edges } = this.createNodesAndEdges(enrichedVersions);
@@ -187,6 +195,8 @@ export class VersionGraphLayout {
 				const group = hotfixGroups.get(node.baseTag) || [];
 				group.push(node);
 				hotfixGroups.set(node.baseTag, group);
+			} else if (node.isHotfix && !node.baseTag) {
+				console.warn(`[VersionGraphLayout] Hotfix node ${node.version} has no baseTag!`);
 			}
 		}
 		
@@ -199,16 +209,37 @@ export class VersionGraphLayout {
 				return seqA - seqB;
 			});
 			
-			// Get base node position
-			const baseNode = nodeMap.get(baseTag);
+			// Find base node - the baseTag might be a version string, need to find matching node
+			// Look for node where version matches the baseTag
+			const baseNode = Array.from(nodeMap.values()).find(n => 
+				n.version === baseTag || n.id === baseTag
+			);
+			
 			if (!baseNode) {
+				console.warn(`[VersionGraphLayout] Base node not found for hotfix base: ${baseTag}`);
+				console.warn(`[VersionGraphLayout] Available nodes:`, Array.from(nodeMap.keys()));
+				console.warn(`[VersionGraphLayout] Hotfixes in this group:`, hotfixes.map(h => h.version));
 				continue;
 			}
+			
+			console.log(`[VersionGraphLayout] Positioning hotfixes for base ${baseTag} at y=${baseNode.y}:`, hotfixes.map(h => h.version));
 			
 			// Position hotfixes horizontally to the right of base
 			hotfixes.forEach((hotfix, index) => {
 				hotfix.x = (index + 1) * this.options.horizontalSpacing;
 				hotfix.y = baseNode.y;  // Same y-level as base
+			});
+		}
+		
+		// Handle orphaned hotfixes (no base node found) - position them at the end
+		const orphanedHotfixes = nodes.filter(n => n.isHotfix && n.x === 0 && n.y === 0);
+		if (orphanedHotfixes.length > 0) {
+			console.warn(`[VersionGraphLayout] Found ${orphanedHotfixes.length} orphaned hotfixes:`, orphanedHotfixes.map(h => h.version));
+			// Position orphaned hotfixes at the bottom
+			const maxY = Math.max(...mainLineNodes.map(n => n.y), 0);
+			orphanedHotfixes.forEach((hotfix, index) => {
+				hotfix.x = this.options.horizontalSpacing;
+				hotfix.y = maxY + (index + 1) * this.options.verticalSpacing;
 			});
 		}
 	}

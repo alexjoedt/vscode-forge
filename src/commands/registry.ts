@@ -9,6 +9,7 @@ import { GitService } from '../services/git.service';
 import { StatusBarManager } from '../ui/status-bar';
 import { TagWizard } from '../ui/tag-wizard';
 import { TagDetailsPanel } from '../ui/tag-details-panel';
+import { VersionGraphPanel } from '../ui/version-graph-panel';
 import { VersionHistoryProvider } from '../providers/version-history.provider';
 import { BumpType, VersionHistoryEntry } from '../types/forge';
 
@@ -40,6 +41,7 @@ export class CommandRegistry {
 		this.registerCommand('forge.install', () => this.installCommand());
 		this.registerCommand('forge.build', () => this.buildCommand());
 		this.registerCommand('forge.buildImage', () => this.buildImageCommand());
+		this.registerCommand('forge.showGraphView', () => this.showGraphViewCommand());
 	}
 
 	/**
@@ -493,6 +495,47 @@ export class CommandRegistry {
 			);
 		} catch (error) {
 			vscode.window.showErrorMessage(`Image build failed: ${error}`);
+		}
+	}
+
+	/**
+	 * Command: Show graph view
+	 */
+	private async showGraphViewCommand(): Promise<void> {
+		if (!await this.forgeService.ensureInstalled()) {
+			return;
+		}
+
+		const appName = this.statusBar.getCurrentApp();
+
+		try {
+			// Get version history with higher limit for graph visualization
+			const limit = vscode.workspace.getConfiguration('forge')
+				.get<number>('graphHistoryLimit', 50);
+
+			const history = await this.forgeService.getVersionHistory({
+				app: appName,
+				limit: limit
+			});
+
+			if (history.versions.length === 0) {
+				vscode.window.showInformationMessage('No version tags found');
+				return;
+			}
+
+			// Get hotfix suffixes from configuration
+			const hotfixSuffixes = vscode.workspace.getConfiguration('forge')
+				.get<string[]>('hotfixSuffixes', ['hotfix', 'patch', 'fix']);
+
+			// Show graph panel
+			await VersionGraphPanel.show(
+				this.context.extensionUri,
+				history.versions,
+				{ hotfixSuffixes }
+			);
+
+		} catch (error) {
+			vscode.window.showErrorMessage(`Failed to load graph: ${error}`);
 		}
 	}
 }

@@ -6,6 +6,7 @@ import * as vscode from 'vscode';
 import { ForgeService } from '../services/forge.service';
 import { ConfigService } from '../services/config.service';
 import { VersionHistoryEntry } from '../types/forge';
+import { isHotfixVersion } from '../utils/hotfix-parser';
 
 export class VersionHistoryProvider implements vscode.TreeDataProvider<VersionTreeItem> {
 	private _onDidChangeTreeData: vscode.EventEmitter<VersionTreeItem | undefined | null | void> = 
@@ -56,6 +57,23 @@ export class VersionHistoryProvider implements vscode.TreeDataProvider<VersionTr
 	}
 
 	/**
+	 * Check if version history contains hotfixes
+	 * Detects hotfix pattern in version strings: <version>-<suffix>.<number>
+	 */
+	private hasHotfixes(versions: VersionHistoryEntry[]): boolean {
+		const suffixes = this.getHotfixSuffixes();
+		return versions.some(v => isHotfixVersion(v.version, suffixes));
+	}
+
+	/**
+	 * Get configured hotfix suffixes from settings
+	 */
+	private getHotfixSuffixes(): string[] {
+		return vscode.workspace.getConfiguration('forge')
+			.get<string[]>('hotfixSuffixes', ['hotfix', 'patch', 'fix']);
+	}
+
+	/**
 	 * Get root level items (tags)
 	 */
 	private async getRootItems(): Promise<VersionTreeItem[]> {
@@ -81,8 +99,17 @@ export class VersionHistoryProvider implements vscode.TreeDataProvider<VersionTr
 				return [this.createNoTagsItem()];
 			}
 
+			// Check if hotfixes exist and show graph view option
+			const items: VersionTreeItem[] = [];
+			
+			if (this.hasHotfixes(history.versions)) {
+				items.push(this.createGraphViewItem());
+			}
+
 			// Convert to tree items
-			return history.versions.map(version => this.createVersionItem(version));
+			items.push(...history.versions.map(version => this.createVersionItem(version)));
+
+			return items;
 
 		} catch (error) {
 			console.error('Error loading version history:', error);
@@ -113,6 +140,28 @@ export class VersionHistoryProvider implements vscode.TreeDataProvider<VersionTr
 			command: 'forge.showTagDetails',
 			title: 'Show Tag Details',
 			arguments: [version]
+		};
+
+		return item;
+	}
+
+	/**
+	 * Create "View as Graph" tree item
+	 */
+	private createGraphViewItem(): VersionTreeItem {
+		const item = new VersionTreeItem(
+			'View as Graph',
+			vscode.TreeItemCollapsibleState.None,
+			'action'
+		);
+
+		item.description = 'Visualize version relationships';
+		item.iconPath = new vscode.ThemeIcon('graph');
+		item.contextValue = 'forgeGraphView';
+		item.tooltip = 'Open interactive graph view showing version relationships and hotfix branches';
+		item.command = {
+			command: 'forge.showGraphView',
+			title: 'Show Graph View'
 		};
 
 		return item;
@@ -207,7 +256,7 @@ export class VersionTreeItem extends vscode.TreeItem {
 	constructor(
 		public readonly label: string,
 		public readonly collapsibleState: vscode.TreeItemCollapsibleState,
-		public readonly itemType: 'tag' | 'placeholder' | 'error'
+		public readonly itemType: 'tag' | 'placeholder' | 'error' | 'action'
 	) {
 		super(label, collapsibleState);
 	}

@@ -108,7 +108,10 @@ export interface VersionInfo {
 }
 
 /**
- * Version history entry
+ * Version history entry with graph relationships
+ * 
+ * Note: isHotfix, baseTag, and hotfixSequence are derived by parsing the version string.
+ * Children are calculated by scanning all versions for hotfixes.
  */
 export interface VersionHistoryEntry {
 	version: string;
@@ -116,6 +119,12 @@ export interface VersionHistoryEntry {
 	commit: string;
 	date: string;
 	message: string;
+	
+	// Derived fields (not from Forge CLI directly)
+	isHotfix?: boolean;       // Derived: true if version matches pattern like "1.0.0-hotfix.1"
+	baseTag?: string;         // Derived: Parent tag for hotfixes (e.g., "v1.0.0" from "v1.0.0-hotfix.1")
+	hotfixSequence?: number;  // Derived: 1, 2, 3... extracted from hotfix.1, hotfix.2...
+	children?: string[];      // Calculated: Child tags branching from this version
 }
 
 /**
@@ -237,4 +246,29 @@ export interface VersionNextResult {
 	next: string;
 	bump: BumpType;
 	scheme: VersionScheme;
+}
+
+/**
+ * Graph node for visualization
+ */
+export interface VersionGraphNode {
+	id: string;              // tag name
+	version: string;
+	commit: string;
+	date: string;
+	message: string;
+	isHotfix: boolean;
+	x: number;               // Position for rendering
+	y: number;
+	baseTag?: string;
+	children: string[];
+}
+
+/**
+ * Graph edge connecting nodes
+ */
+export interface VersionGraphEdge {
+	from: string;            // tag name
+	to: string;              // tag name
+	isHotfix: boolean;       // hotfix branch vs main release line
 }

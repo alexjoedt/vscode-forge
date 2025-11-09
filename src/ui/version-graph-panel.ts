@@ -215,16 +215,15 @@ export class VersionGraphPanel {
 			stroke: var(--vscode-charts-blue);
 			stroke-width: 3px;
 			cursor: pointer;
-			transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+			transition: fill 0.2s, stroke 0.2s, stroke-width 0.2s, filter 0.2s;
 			filter: drop-shadow(0 2px 6px rgba(0, 100, 200, 0.3));
 		}
 		
 		.node-release:hover {
 			fill: var(--vscode-charts-purple);
 			stroke: var(--vscode-charts-purple);
-			stroke-width: 4px;
+			stroke-width: 4.5px;
 			filter: drop-shadow(0 4px 12px rgba(100, 50, 200, 0.5));
-			transform: scale(1.15);
 		}
 		
 		.node-hotfix {
@@ -232,16 +231,15 @@ export class VersionGraphPanel {
 			stroke: var(--vscode-charts-orange);
 			stroke-width: 3px;
 			cursor: pointer;
-			transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+			transition: fill 0.2s, stroke 0.2s, stroke-width 0.2s, filter 0.2s;
 			filter: drop-shadow(0 2px 6px rgba(200, 100, 0, 0.3));
 		}
 		
 		.node-hotfix:hover {
 			fill: var(--vscode-charts-red);
 			stroke: var(--vscode-charts-red);
-			stroke-width: 4px;
+			stroke-width: 4.5px;
 			filter: drop-shadow(0 4px 12px rgba(200, 50, 50, 0.5));
-			transform: scale(1.15);
 		}
 		
 		.edge-release {
@@ -551,9 +549,23 @@ export class VersionGraphPanel {
 			return `<path d="${path}" class="${className}" />`;
 		}).join('\n');
 		
-		// Generate nodes with labels positioned to the right
-		const nodesSvg = nodes.map(node => {
+		// Generate nodes (circles only) - these should be clickable
+		const nodeCirclesSvg = nodes.map(node => {
 			const className = node.isHotfix ? 'node-hotfix' : 'node-release';
+			const nodeRadius = 10;
+			
+			return `
+				<circle cx="${node.x}" cy="${node.y}" r="${nodeRadius}" class="${className} graph-node" 
+					data-tag="${this.escapeHtml(node.id)}" 
+					data-version="${this.escapeHtml(node.version)}" 
+					data-commit="${this.escapeHtml(node.commit)}" 
+					data-date="${this.escapeHtml(node.date)}" 
+					data-message="${this.escapeHtml(node.message)}" />
+			`;
+		}).join('\n');
+		
+		// Generate labels (text) - these should appear above edges and not interfere with hover
+		const labelsSvg = nodes.map(node => {
 			const labelClass = node.isHotfix ? 'node-label hotfix-label' : 'node-label';
 			const commitClass = node.isHotfix ? 'node-commit hotfix-commit' : 'node-commit';
 			
@@ -564,8 +576,7 @@ export class VersionGraphPanel {
 			const commitY = node.y + 20;
 			
 			return `
-				<g class="graph-node" data-tag="${this.escapeHtml(node.id)}" data-version="${this.escapeHtml(node.version)}" data-commit="${this.escapeHtml(node.commit)}" data-date="${this.escapeHtml(node.date)}" data-message="${this.escapeHtml(node.message)}">
-					<circle cx="${node.x}" cy="${node.y}" r="${nodeRadius}" class="${className}" />
+				<g class="label-group" pointer-events="none">
 					<text x="${labelX}" y="${labelY}" class="${labelClass}">${this.escapeHtml(node.version)}</text>
 					<text x="${labelX}" y="${commitY}" class="${commitClass}">${this.escapeHtml(node.commit.substring(0, 7))}</text>
 				</g>
@@ -591,8 +602,10 @@ export class VersionGraphPanel {
 						</feMerge>
 					</filter>
 				</defs>
+				<!-- Render order: edges first, then nodes, then labels on top -->
 				${edgesSvg}
-				${nodesSvg}
+				${nodeCirclesSvg}
+				${labelsSvg}
 			</svg>
 		`;
 	}

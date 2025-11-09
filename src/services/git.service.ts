@@ -160,6 +160,119 @@ export class GitService {
 	}
 
 	/**
+	 * Get commit message
+	 */
+	async getCommitMessage(commit: string): Promise<string> {
+		try {
+			return await this.executeGit(['log', '-1', '--format=%B', commit]);
+		} catch (error) {
+			return 'Unable to fetch commit message';
+		}
+	}
+
+	/**
+	 * Get commit author name
+	 */
+	async getCommitAuthor(commit: string): Promise<string> {
+		try {
+			return await this.executeGit(['log', '-1', '--format=%an', commit]);
+		} catch (error) {
+			return 'Unknown';
+		}
+	}
+
+	/**
+	 * Get commit author email
+	 */
+	async getCommitAuthorEmail(commit: string): Promise<string> {
+		try {
+			return await this.executeGit(['log', '-1', '--format=%ae', commit]);
+		} catch (error) {
+			return '';
+		}
+	}
+
+	/**
+	 * Get commit date
+	 */
+	async getCommitDate(commit: string): Promise<string> {
+		try {
+			return await this.executeGit(['log', '-1', '--format=%ai', commit]);
+		} catch (error) {
+			return 'Unknown';
+		}
+	}
+
+	/**
+	 * Get commit statistics (files changed, insertions, deletions)
+	 */
+	async getCommitStats(commit: string): Promise<{
+		filesChanged: number;
+		insertions: number;
+		deletions: number;
+	}> {
+		try {
+			const output = await this.executeGit(['show', '--stat', '--format=', commit]);
+			
+			// Parse the stat line (e.g., "3 files changed, 45 insertions(+), 12 deletions(-)")
+			const statMatch = output.match(/(\d+)\s+files?\s+changed(?:,\s+(\d+)\s+insertions?\(\+\))?(?:,\s+(\d+)\s+deletions?\(-\))?/);
+			
+			if (statMatch) {
+				return {
+					filesChanged: parseInt(statMatch[1] || '0', 10),
+					insertions: parseInt(statMatch[2] || '0', 10),
+					deletions: parseInt(statMatch[3] || '0', 10)
+				};
+			}
+
+			return { filesChanged: 0, insertions: 0, deletions: 0 };
+		} catch (error) {
+			return { filesChanged: 0, insertions: 0, deletions: 0 };
+		}
+	}
+
+	/**
+	 * Get commit diff stat (detailed file changes)
+	 */
+	async getCommitDiffStat(commit: string): Promise<string> {
+		try {
+			return await this.executeGit(['show', '--stat', '--format=', commit]);
+		} catch (error) {
+			return '';
+		}
+	}
+
+	/**
+	 * Get commit file diffs
+	 */
+	async getCommitFileDiffs(commit: string): Promise<Array<{name: string, changes: string}>> {
+		try {
+			// Get list of changed files
+			const files = await this.executeGit(['diff-tree', '--no-commit-id', '--name-only', '-r', commit]);
+			const fileList = files.split('\n').filter(f => f.trim());
+
+			// Limit to first 10 files to avoid overwhelming output
+			const limitedFiles = fileList.slice(0, 10);
+
+			// Get diff for each file
+			const diffs = await Promise.all(
+				limitedFiles.map(async (file) => {
+					try {
+						const diff = await this.executeGit(['show', '--format=', `${commit}`, '--', file]);
+						return { name: file, changes: diff };
+					} catch (error) {
+						return { name: file, changes: 'Unable to fetch diff' };
+					}
+				})
+			);
+
+			return diffs;
+		} catch (error) {
+			return [];
+		}
+	}
+
+	/**
 	 * Get workspace root directory
 	 */
 	private getWorkspaceRoot(): string | undefined {

@@ -8,6 +8,7 @@ import { ConfigService } from '../services/config.service';
 import { GitService } from '../services/git.service';
 import { StatusBarManager } from '../ui/status-bar';
 import { TagWizard } from '../ui/tag-wizard';
+import { TagDetailsPanel } from '../ui/tag-details-panel';
 import { VersionHistoryProvider } from '../providers/version-history.provider';
 import { BumpType, VersionHistoryEntry } from '../types/forge';
 
@@ -350,24 +351,11 @@ export class CommandRegistry {
 			return;
 		}
 
-		const details: string[] = [];
-		details.push(`Tag: ${version.tag}`);
-		details.push(`Version: ${version.version}`);
-		
-		if (version.commit) {
-			details.push(`Commit: ${version.commit.substring(0, 7)}`);
-		}
-		
-		details.push(`Date: ${version.date}`);
-		
-		if (version.message) {
-			details.push(`Message: ${version.message}`);
-		}
-
-		// Use modal option to show in a more readable format
-		vscode.window.showInformationMessage(
-			details.join(' | '),
-			{ modal: false }
+		// Show detailed tag information in a webview panel
+		await TagDetailsPanel.show(
+			this.context.extensionUri,
+			this.gitService,
+			version
 		);
 	}
 

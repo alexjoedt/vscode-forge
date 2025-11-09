@@ -113,6 +113,7 @@ export function validateVersionConfig(versionConfig: VersionConfig): string[] {
  */
 export function validateForgeConfig(config: ForgeConfig): string[] {
 	const errors: string[] = [];
+	const MAX_APPS = 10; // Prevent excessive processing of malicious configs
 
 	try {
 		const configType = detectConfigType(config);
@@ -123,6 +124,12 @@ export function validateForgeConfig(config: ForgeConfig): string[] {
 			// Validate each app
 			if (configType.apps && configType.apps.length === 0) {
 				errors.push('Multi-app config must have at least one app');
+			}
+
+			// Prevent excessive processing of malicious configs
+			if (configType.apps && configType.apps.length > MAX_APPS) {
+				errors.push(`Too many apps defined (max: ${MAX_APPS})`);
+				return errors;
 			}
 
 			configType.apps?.forEach(appName => {

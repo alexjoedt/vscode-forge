@@ -83,21 +83,37 @@ export async function activate(context: vscode.ExtensionContext) {
 		})
 	);
 
-	// Watch for git changes
+	// Watch for git changes with debouncing to prevent excessive updates
+	let gitUpdateTimeout: NodeJS.Timeout | undefined;
+	const debouncedGitUpdate = () => {
+		if (gitUpdateTimeout) {
+			clearTimeout(gitUpdateTimeout);
+		}
+		gitUpdateTimeout = setTimeout(async () => {
+			try {
+				versionHistoryProvider.refresh();
+				await statusBar.updateVersion();
+			} catch (error) {
+				// Silently fail - this is a background update
+				console.error('Failed to update version info:', error);
+			}
+		}, 500); // Wait 500ms after last change
+	};
+
 	const gitWatcher = vscode.workspace.createFileSystemWatcher('**/.git/refs/tags/**');
-	gitWatcher.onDidChange(() => {
-		versionHistoryProvider.refresh();
-		statusBar.updateVersion();
-	});
-	gitWatcher.onDidCreate(() => {
-		versionHistoryProvider.refresh();
-		statusBar.updateVersion();
-	});
-	gitWatcher.onDidDelete(() => {
-		versionHistoryProvider.refresh();
-		statusBar.updateVersion();
-	});
+	gitWatcher.onDidChange(debouncedGitUpdate);
+	gitWatcher.onDidCreate(debouncedGitUpdate);
+	gitWatcher.onDidDelete(debouncedGitUpdate);
 	context.subscriptions.push(gitWatcher);
+
+	// Clean up timeout on deactivation
+	context.subscriptions.push({
+		dispose: () => {
+			if (gitUpdateTimeout) {
+				clearTimeout(gitUpdateTimeout);
+			}
+		}
+	});
 
 	// Show welcome message for first-time users
 	const hasShownWelcome = context.globalState.get('forge.hasShownWelcome', false);

@@ -66,8 +66,10 @@ export class VersionHistoryProvider implements vscode.TreeDataProvider<VersionTr
 				return [this.createNoConfigItem()];
 			}
 
-			// Get version history limit from configuration
-			const limit = vscode.workspace.getConfiguration('forge').get<number>('versionHistoryLimit', 10);
+			// Get version history limit from configuration with safety cap
+			const MAX_LIMIT = 1000; // Prevent excessive memory usage
+			const configLimit = vscode.workspace.getConfiguration('forge').get<number>('versionHistoryLimit', 10);
+			const limit = Math.min(configLimit, MAX_LIMIT);
 
 			// Get version history from forge
 			const history = await this.forgeService.getVersionHistory({ 

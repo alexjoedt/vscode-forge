@@ -57,10 +57,25 @@ export class ForgeService {
 	/**
 	 * Ensure forge is installed, show error if not
 	 */
-	async ensureInstalled(): Promise<boolean> {
+	async ensureInstalled(retryCount: number = 0): Promise<boolean> {
+		const MAX_RETRIES = 1; // Only allow one installation attempt to prevent infinite loops
+		
 		const installation = await this.checkInstallation();
 		
 		if (!installation.installed) {
+			// If we've already tried installing, don't ask again
+			if (retryCount >= MAX_RETRIES) {
+				vscode.window.showErrorMessage(
+					'Forge CLI is not installed. Please install it manually.',
+					'Open Documentation'
+				).then(action => {
+					if (action === 'Open Documentation') {
+						vscode.env.openExternal(vscode.Uri.parse('https://github.com/alexjoedt/forge'));
+					}
+				});
+				return false;
+			}
+			
 			const action = await vscode.window.showErrorMessage(
 				'Forge CLI is not installed. Would you like to install it now?',
 				'Install with Go',
@@ -71,9 +86,9 @@ export class ForgeService {
 			if (action === 'Install with Go') {
 				const success = await this.installForge();
 				if (success) {
-					// Clear cached installation status
+					// Clear cached installation status and retry verification once
 					this.installation = null;
-					return await this.ensureInstalled();
+					return await this.ensureInstalled(retryCount + 1);
 				}
 				return false;
 			} else if (action === 'Open Documentation') {

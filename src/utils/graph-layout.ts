@@ -126,13 +126,18 @@ export class VersionGraphLayout {
 		// Create edges from base versions to hotfixes
 		for (const node of nodes) {
 			if (node.isHotfix && node.baseTag) {
-				const baseNode = nodeMap.get(node.baseTag);
+				// Find base node by matching version string
+				const baseNode = Array.from(nodeMap.values()).find(n => 
+					n.version === node.baseTag || n.id === node.baseTag
+				);
 				if (baseNode) {
 					edges.push({
-						from: node.baseTag,
+						from: baseNode.id,  // Use the actual node ID, not baseTag
 						to: node.id,
 						isHotfix: true
 					});
+				} else {
+					console.warn(`[VersionGraphLayout] No base node found for hotfix ${node.version} with baseTag ${node.baseTag}`);
 				}
 			}
 		}

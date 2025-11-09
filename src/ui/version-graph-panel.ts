@@ -181,134 +181,173 @@ export class VersionGraphPanel {
 			padding: 0;
 			margin: 0;
 			overflow: auto;
-			background-color: var(--vscode-editor-background);
+			background: linear-gradient(135deg, 
+				var(--vscode-editor-background) 0%, 
+				color-mix(in srgb, var(--vscode-editor-background) 95%, var(--vscode-charts-blue) 5%) 100%);
 			color: var(--vscode-editor-foreground);
 			font-family: var(--vscode-font-family);
+			min-height: 100vh;
 		}
 		
 		.container {
 			width: 100%;
 			min-height: 100vh;
-			padding: 20px 40px;
+			padding: 30px 50px;
 			box-sizing: border-box;
 		}
 		
 		.graph-container {
 			display: inline-block;
 			min-width: 100%;
+			background-color: color-mix(in srgb, var(--vscode-editor-background) 80%, transparent 20%);
+			border-radius: 12px;
+			padding: 20px;
+			box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 		}
 		
 		svg {
 			display: block;
+			filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 		}
 		
 		.node-release {
 			fill: var(--vscode-charts-blue);
-			stroke: var(--vscode-foreground);
-			stroke-width: 2px;
+			stroke: var(--vscode-charts-blue);
+			stroke-width: 3px;
 			cursor: pointer;
-			transition: all 0.2s;
+			transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+			filter: drop-shadow(0 2px 6px rgba(0, 100, 200, 0.3));
 		}
 		
 		.node-release:hover {
 			fill: var(--vscode-charts-purple);
-			stroke-width: 3px;
+			stroke: var(--vscode-charts-purple);
+			stroke-width: 4px;
+			filter: drop-shadow(0 4px 12px rgba(100, 50, 200, 0.5));
+			transform: scale(1.15);
 		}
 		
 		.node-hotfix {
 			fill: var(--vscode-charts-orange);
-			stroke: var(--vscode-foreground);
-			stroke-width: 2px;
+			stroke: var(--vscode-charts-orange);
+			stroke-width: 3px;
 			cursor: pointer;
-			transition: all 0.2s;
+			transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+			filter: drop-shadow(0 2px 6px rgba(200, 100, 0, 0.3));
 		}
 		
 		.node-hotfix:hover {
 			fill: var(--vscode-charts-red);
-			stroke-width: 3px;
+			stroke: var(--vscode-charts-red);
+			stroke-width: 4px;
+			filter: drop-shadow(0 4px 12px rgba(200, 50, 50, 0.5));
+			transform: scale(1.15);
 		}
 		
 		.edge-release {
 			stroke: var(--vscode-foreground);
-			stroke-width: 2px;
+			stroke-width: 2.5px;
 			fill: none;
-			opacity: 0.4;
+			opacity: 0.3;
+			stroke-linecap: round;
+			transition: all 0.2s;
 		}
 		
 		.edge-hotfix {
 			stroke: var(--vscode-charts-orange);
-			stroke-width: 2px;
-			stroke-dasharray: 5, 3;
+			stroke-width: 2.5px;
+			stroke-dasharray: 8, 4;
 			fill: none;
-			opacity: 0.7;
+			opacity: 0.6;
+			stroke-linecap: round;
+			transition: all 0.2s;
+			filter: drop-shadow(0 1px 3px rgba(200, 100, 0, 0.2));
 		}
 		
 		.node-label {
 			fill: var(--vscode-foreground);
-			font-size: 13px;
-			font-weight: 500;
+			font-size: 14px;
+			font-weight: 600;
 			text-anchor: start;
 			pointer-events: none;
 			user-select: none;
+			text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 		}
 		
 		.node-commit {
 			fill: var(--vscode-descriptionForeground);
 			font-size: 11px;
+			font-family: var(--vscode-editor-font-family, monospace);
 			text-anchor: start;
 			pointer-events: none;
 			user-select: none;
+			opacity: 0.8;
 		}
 		
 		.tooltip {
 			position: absolute;
-			background-color: var(--vscode-editorHoverWidget-background);
+			background: linear-gradient(135deg, 
+				var(--vscode-editorHoverWidget-background) 0%, 
+				color-mix(in srgb, var(--vscode-editorHoverWidget-background) 95%, var(--vscode-charts-blue) 5%) 100%);
 			border: 1px solid var(--vscode-editorHoverWidget-border);
-			padding: 8px;
-			border-radius: 4px;
+			padding: 12px 14px;
+			border-radius: 8px;
 			pointer-events: none;
 			z-index: 2000;
 			font-size: 12px;
 			display: none;
-			max-width: 300px;
-			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+			max-width: 320px;
+			box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2);
+			backdrop-filter: blur(10px);
 		}
 		
 		.tooltip-title {
-			font-weight: bold;
-			margin-bottom: 4px;
+			font-weight: 700;
+			font-size: 13px;
+			margin-bottom: 6px;
+			color: var(--vscode-foreground);
 		}
 		
 		.tooltip-info {
 			font-size: 11px;
 			color: var(--vscode-descriptionForeground);
+			line-height: 1.5;
 		}
 		
 		.legend {
 			position: fixed;
-			top: 20px;
-			right: 20px;
-			background-color: var(--vscode-editor-background);
-			border: 1px solid var(--vscode-panel-border);
-			padding: 10px 12px;
-			border-radius: 4px;
+			top: 30px;
+			right: 30px;
+			background: linear-gradient(135deg, 
+				color-mix(in srgb, var(--vscode-editor-background) 90%, transparent 10%) 0%, 
+				color-mix(in srgb, var(--vscode-editor-background) 95%, var(--vscode-charts-blue) 5%) 100%);
+			border: 1px solid color-mix(in srgb, var(--vscode-panel-border) 70%, transparent 30%);
+			padding: 14px 16px;
+			border-radius: 10px;
 			font-size: 12px;
 			z-index: 1000;
-			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+			box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), 0 2px 8px rgba(0, 0, 0, 0.15);
+			backdrop-filter: blur(10px);
 		}
 		
 		.legend-item {
 			display: flex;
 			align-items: center;
-			gap: 8px;
-			margin: 4px 0;
+			gap: 10px;
+			margin: 6px 0;
+			transition: transform 0.2s;
+		}
+		
+		.legend-item:hover {
+			transform: translateX(2px);
 		}
 		
 		.legend-circle {
-			width: 12px;
-			height: 12px;
+			width: 14px;
+			height: 14px;
 			border-radius: 50%;
-			border: 2px solid var(--vscode-foreground);
+			border: none;
+			box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 		}
 		
 		.legend-release {
@@ -321,24 +360,32 @@ export class VersionGraphPanel {
 		
 		.context-menu {
 			position: absolute;
-			background-color: var(--vscode-menu-background);
+			background: linear-gradient(135deg, 
+				var(--vscode-menu-background) 0%, 
+				color-mix(in srgb, var(--vscode-menu-background) 98%, var(--vscode-charts-blue) 2%) 100%);
 			border: 1px solid var(--vscode-menu-border);
-			border-radius: 4px;
-			padding: 4px 0;
+			border-radius: 8px;
+			padding: 6px 0;
 			z-index: 3000;
 			display: none;
-			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+			box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.2);
+			backdrop-filter: blur(10px);
+			min-width: 160px;
 		}
 		
 		.context-menu-item {
-			padding: 6px 20px;
+			padding: 8px 20px;
 			cursor: pointer;
 			font-size: 12px;
+			transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+			border-left: 3px solid transparent;
 		}
 		
 		.context-menu-item:hover {
 			background-color: var(--vscode-menu-selectionBackground);
 			color: var(--vscode-menu-selectionForeground);
+			border-left-color: var(--vscode-charts-blue);
+			padding-left: 22px;
 		}
 	</style>
 </head>
@@ -511,13 +558,14 @@ export class VersionGraphPanel {
 			const commitClass = node.isHotfix ? 'node-commit hotfix-commit' : 'node-commit';
 			
 			// Position labels to the right of the node
-			const labelX = node.x + 30;
-			const labelY = node.y + 5;
-			const commitY = node.y + 18;
+			const nodeRadius = 10;
+			const labelX = node.x + nodeRadius + 20;
+			const labelY = node.y + 6;
+			const commitY = node.y + 20;
 			
 			return `
 				<g class="graph-node" data-tag="${this.escapeHtml(node.id)}" data-version="${this.escapeHtml(node.version)}" data-commit="${this.escapeHtml(node.commit)}" data-date="${this.escapeHtml(node.date)}" data-message="${this.escapeHtml(node.message)}">
-					<circle cx="${node.x}" cy="${node.y}" r="8" class="${className}" />
+					<circle cx="${node.x}" cy="${node.y}" r="${nodeRadius}" class="${className}" />
 					<text x="${labelX}" y="${labelY}" class="${labelClass}">${this.escapeHtml(node.version)}</text>
 					<text x="${labelX}" y="${commitY}" class="${commitClass}">${this.escapeHtml(node.commit.substring(0, 7))}</text>
 				</g>
@@ -526,6 +574,23 @@ export class VersionGraphPanel {
 		
 		return `
 			<svg width="${width + leftMargin + 40}" height="${height + topMargin + 40}" xmlns="http://www.w3.org/2000/svg">
+				<defs>
+					<!-- Glow filters for nodes -->
+					<filter id="glow-blue" x="-50%" y="-50%" width="200%" height="200%">
+						<feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+						<feMerge>
+							<feMergeNode in="coloredBlur"/>
+							<feMergeNode in="SourceGraphic"/>
+						</feMerge>
+					</filter>
+					<filter id="glow-orange" x="-50%" y="-50%" width="200%" height="200%">
+						<feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+						<feMerge>
+							<feMergeNode in="coloredBlur"/>
+							<feMergeNode in="SourceGraphic"/>
+						</feMerge>
+					</filter>
+				</defs>
 				${edgesSvg}
 				${nodesSvg}
 			</svg>

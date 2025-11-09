@@ -6,6 +6,7 @@ import * as vscode from 'vscode';
 import { ForgeService } from '../services/forge.service';
 import { ConfigService } from '../services/config.service';
 import { VersionHistoryEntry } from '../types/forge';
+import { isHotfixVersion } from '../utils/hotfix-parser';
 
 export class VersionHistoryProvider implements vscode.TreeDataProvider<VersionTreeItem> {
 	private _onDidChangeTreeData: vscode.EventEmitter<VersionTreeItem | undefined | null | void> = 
@@ -56,6 +57,23 @@ export class VersionHistoryProvider implements vscode.TreeDataProvider<VersionTr
 	}
 
 	/**
+	 * Check if version history contains hotfixes
+	 * Detects hotfix pattern in version strings: <version>-<suffix>.<number>
+	 */
+	private hasHotfixes(versions: VersionHistoryEntry[]): boolean {
+		const suffixes = this.getHotfixSuffixes();
+		return versions.some(v => isHotfixVersion(v.version, suffixes));
+	}
+
+	/**
+	 * Get configured hotfix suffixes from settings
+	 */
+	private getHotfixSuffixes(): string[] {
+		return vscode.workspace.getConfiguration('forge')
+			.get<string[]>('hotfixSuffixes', ['hotfix', 'patch', 'fix']);
+	}
+
+	/**
 	 * Get root level items (tags)
 	 */
 	private async getRootItems(): Promise<VersionTreeItem[]> {
@@ -82,7 +100,9 @@ export class VersionHistoryProvider implements vscode.TreeDataProvider<VersionTr
 			}
 
 			// Convert to tree items
-			return history.versions.map(version => this.createVersionItem(version));
+			const items: VersionTreeItem[] = history.versions.map(version => this.createVersionItem(version));
+
+			return items;
 
 		} catch (error) {
 			console.error('Error loading version history:', error);
@@ -207,7 +227,7 @@ export class VersionTreeItem extends vscode.TreeItem {
 	constructor(
 		public readonly label: string,
 		public readonly collapsibleState: vscode.TreeItemCollapsibleState,
-		public readonly itemType: 'tag' | 'placeholder' | 'error'
+		public readonly itemType: 'tag' | 'placeholder' | 'error' | 'action'
 	) {
 		super(label, collapsibleState);
 	}

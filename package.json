@@ -114,6 +114,12 @@
         "title": "Build Docker Image",
         "category": "Forge",
         "icon": "$(package)"
+      },
+      {
+        "command": "forge.showGraphView",
+        "title": "Show Graph View",
+        "category": "Forge",
+        "icon": "$(graph)"
       }
     ],
     "viewsContainers": {
@@ -154,9 +160,14 @@
           "group": "navigation@2"
         },
         {
-          "command": "forge.selectApp",
+          "command": "forge.showGraphView",
           "when": "view == forgeVersionHistory",
           "group": "navigation@3"
+        },
+        {
+          "command": "forge.selectApp",
+          "when": "view == forgeVersionHistory",
+          "group": "navigation@4"
         }
       ],
       "view/item/context": [
@@ -202,6 +213,35 @@
           "minimum": 1,
           "maximum": 20,
           "description": "Maximum number of version tags to display in Version History view"
+        },
+        "forge.graphHistoryLimit": {
+          "type": "number",
+          "default": 50,
+          "minimum": 10,
+          "maximum": 100,
+          "description": "Maximum number of version tags to display in Graph View"
+        },
+        "forge.hotfixSuffixes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "hotfix",
+            "patch",
+            "fix"
+          ],
+          "description": "Prerelease suffixes to recognize as hotfix versions for graph visualization"
+        },
+        "forge.defaultVersionView": {
+          "type": "string",
+          "enum": [
+            "tree",
+            "graph",
+            "auto"
+          ],
+          "default": "auto",
+          "description": "Default view for version history. Auto shows graph when hotfixes exist."
         }
       }
     }
